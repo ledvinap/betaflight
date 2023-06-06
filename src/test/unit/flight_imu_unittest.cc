@@ -26,6 +26,7 @@ extern "C" {
 
     #include "common/axis.h"
     #include "common/maths.h"
+    #include "common/vector.h"
 
     #include "config/feature.h"
     #include "pg/pg.h"
@@ -74,7 +75,19 @@ extern "C" {
 #include "unittest_macros.h"
 #include "gtest/gtest.h"
 
-const float sqrt2over2 = sqrtf(2) / 2.0f;
+const float sqrt2over2 = sqrt(2) / 2.0;
+const float sqrt3over2 = sqrt(3) / 2.0;
+const float identity33[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+
+// generate quaternion from axis and angle (in rad)
+void quaternion_from_axis_angle(quaternion* q, float angle, float x, float y, float z) {
+    fpVector3_t a = {{x, y, z}};
+    vectorNormalize(&a, &a);
+    q->w = cos(angle / 2);
+    q->x = a.x * sin(angle / 2);
+    q->y = a.y * sin(angle / 2);
+    q->z = a.z * sin(angle / 2);
+}
 
 TEST(FlightImuTest, TestCalculateRotationMatrix)
 {
@@ -99,10 +112,7 @@ TEST(FlightImuTest, TestCalculateRotationMatrix)
     EXPECT_FLOAT_EQ(1.0f, rMat[2][2]);
 
     // 90 degrees around Z axis
-    q.w = sqrt2over2;
-    q.x = 0.0f;
-    q.y = 0.0f;
-    q.z = sqrt2over2;
+    quaternion_from_axis_angle(&q, DEGREES_TO_RADIANS(90), 0, 0, 1);
 
     imuComputeRotationMatrix();
 
@@ -117,10 +127,7 @@ TEST(FlightImuTest, TestCalculateRotationMatrix)
     EXPECT_NEAR(1.0f, rMat[2][2], TOL);
 
     // 60 degrees around X axis
-    q.w = 0.866f;
-    q.x = 0.5f;
-    q.y = 0.0f;
-    q.z = 0.0f;
+    quaternion_from_axis_angle(&q, DEGREES_TO_RADIANS(60), 1, 0, 0);
 
     imuComputeRotationMatrix();
 
@@ -129,16 +136,16 @@ TEST(FlightImuTest, TestCalculateRotationMatrix)
     EXPECT_NEAR(0.0f, rMat[0][2], TOL);
     EXPECT_NEAR(0.0f, rMat[1][0], TOL);
     EXPECT_NEAR(0.5f, rMat[1][1], TOL);
-    EXPECT_NEAR(-0.866f, rMat[1][2], TOL);
+    EXPECT_NEAR(-sqrt3over2, rMat[1][2], TOL);
     EXPECT_NEAR(0.0f, rMat[2][0], TOL);
-    EXPECT_NEAR(0.866f, rMat[2][1], TOL);
+    EXPECT_NEAR(sqrt3over2, rMat[2][1], TOL);
     EXPECT_NEAR(0.5f, rMat[2][2], TOL);
 }
 
 TEST(FlightImuTest, TestUpdateEulerAngles)
 {
     // No rotation
-    memset(rMat, 0.0, sizeof(float) * 9);
+    memcpy(rMat, identity33, sizeof(rMat));
 
     imuUpdateEulerAngles();
 
@@ -147,7 +154,7 @@ TEST(FlightImuTest, TestUpdateEulerAngles)
     EXPECT_EQ(0, attitude.values.yaw);
 
     // 45 degree yaw
-    memset(rMat, 0.0, sizeof(float) * 9);
+    memset(rMat, 0.0, sizeof(rMat));
     rMat[0][0] = sqrt2over2;
     rMat[0][1] = sqrt2over2;
     rMat[1][0] = -sqrt2over2;
@@ -162,43 +169,25 @@ TEST(FlightImuTest, TestUpdateEulerAngles)
 
 TEST(FlightImuTest, TestSmallAngle)
 {
-    const float r1 = 0.898;
-    const float r2 = 0.438;
-
     // given
     imuConfigMutable()->small_angle = 25;
     imuConfigure(0, 0);
     attitudeIsEstablished = true;
 
-    // and
-    memset(rMat, 0.0, sizeof(float) * 9);
+    // level
+    quaternion_from_axis_angle(&q, DEGREES_TO_RADIANS(0), 1, 0, 0);
+    imuComputeRotationMatrix();          // identity
+    EXPECT_TRUE(isUpright());
 
-    // when
+    // 26 deg around x
+    quaternion_from_axis_angle(&q, DEGREES_TO_RADIANS(26), 1, 0, 0);
     imuComputeRotationMatrix();
-
-    // expect
     EXPECT_FALSE(isUpright());
 
-    // given
-    rMat[0][0] = r1;
-    rMat[0][2] = r2;
-    rMat[2][0] = -r2;
-    rMat[2][2] = r1;
-
-    // when
+    // 24 deg around x
+    quaternion_from_axis_angle(&q, DEGREES_TO_RADIANS(24), 1, 0, 0);
     imuComputeRotationMatrix();
-
-    // expect
-    EXPECT_FALSE(isUpright());
-
-    // given
-    memset(rMat, 0.0, sizeof(float) * 9);
-
-    // when
-    imuComputeRotationMatrix();
-
-    // expect
-    EXPECT_FALSE(isUpright());
+    EXPECT_TRUE(isUpright());
 }
 
 // STUBS
