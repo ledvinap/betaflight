@@ -228,7 +228,7 @@ STATIC_UNIT_TESTED void imuMahonyAHRSupdate(float dt, float gx, float gy, float 
         const float dot = vector2Dot(&heading_ef, &cog_ef);
         // use cross product / sin(angle) when error < 90deg (cos > 0),
         //   |heading| if error is larger (cos < 0)
-        const float heading_mag = vector2Mag(&heading_ef);
+        const float heading_mag = vector2Norm(&heading_ef);
         float ez_ef = (dot > 0) ? cross : (cross < 0 ? -1.0f : 1.0f) * heading_mag;
 #if THRUST_COG
         // increase gain for small tilt (just heuristic; sqrt is cheap on F4+)
@@ -249,10 +249,10 @@ STATIC_UNIT_TESTED void imuMahonyAHRSupdate(float dt, float gx, float gy, float 
 #ifdef USE_MAG
     // Use measured magnetic field vector
     vector3_t mag_bf = {{mag.magADC[X], mag.magADC[Y], mag.magADC[Z]}};
-    float recipMagNorm = vectorNormSquared(&mag_bf);
+    float recipMagNorm = vector3NormSq(&mag_bf);
     if (useMag && recipMagNorm > 0.01f) {
         // Normalise magnetometer measurement
-        vectorNormalize(&mag_bf, &mag_bf);
+        vector3Normalize(&mag_bf, &mag_bf);
 
         // For magnetometer correction we make an assumption that magnetic field is perpendicular to gravity (ignore Z-component in EF).
         // This way magnetic field will only affect heading and wont mess roll/pitch angles
@@ -268,7 +268,7 @@ STATIC_UNIT_TESTED void imuMahonyAHRSupdate(float dt, float gx, float gy, float 
         // increase gain on large misalignment
         const float dot = vector2Dot((vector2_t*)&mag_ef, &north_ef);
         const float cross = vector2Cross((vector2_t*)&mag_ef, &north_ef);
-        const float ez_ef = (dot > 0) ? cross : (cross < 0 ? -1.0f : 1.0f) * vector2Mag((vector2_t*)&mag_ef);
+        const float ez_ef = (dot > 0) ? cross : (cross < 0 ? -1.0f : 1.0f) * vector2Norm((vector2_t*)&mag_ef);
         // Rotate mag error vector back to BF and accumulate
         ex += rMat[2][0] * ez_ef;
         ey += rMat[2][1] * ez_ef;
