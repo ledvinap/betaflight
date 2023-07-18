@@ -29,6 +29,7 @@
 
 #include "common/axis.h"
 #include "common/utils.h"
+#include "common/vector.h"
 
 #include "config/config.h"
 #include "config/feature.h"
@@ -416,7 +417,7 @@ static FAST_CODE void processRcSmoothingFilter(void)
                         const float kF = 0.1f; // first order lowpass smoothing filter coefficient
                         const float smoothedRxRateHz = prevRxRateHz + kF * (currentRxRateHz - prevRxRateHz);
                         prevRxRateHz = smoothedRxRateHz;
-      
+
                         // recalculate cutoffs every 3 acceptable samples
                         if (rcSmoothingData.sampleCount) {
                             rcSmoothingData.sampleCount --;
@@ -496,7 +497,7 @@ FAST_CODE_NOINLINE void calculateFeedforward(const pidRuntime_t *pid, int axis)
 
     static float prevRcCommand[3];
     static float prevRcCommandDeltaAbs[3];          // for duplicate interpolation
-    static float prevSetpoint[3];                   // equals raw unless interpolated 
+    static float prevSetpoint[3];                   // equals raw unless interpolated
     static float prevSetpointSpeed[3];
     static float prevAcceleration[3];               // for duplicate interpolation
     static bool prevDuplicatePacket[3];             // to identify multiple identical packets
@@ -623,7 +624,7 @@ FAST_CODE void processRcCommand(void)
         for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
 
             float angleRate;
-            
+
 #ifdef USE_GPS_RESCUE
             if ((axis == FD_YAW) && FLIGHT_MODE(GPS_RESCUE_MODE)) {
                 // If GPS Rescue is active then override the setpointRate used in the
@@ -733,20 +734,20 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
         }
     }
     if (FLIGHT_MODE(HEADFREE_MODE)) {
-        static t_fp_vector_def  rcCommandBuff;
+        static vector3_t rcCommandBuff;
 
-        rcCommandBuff.X = rcCommand[ROLL];
-        rcCommandBuff.Y = rcCommand[PITCH];
+        rcCommandBuff.x = rcCommand[ROLL];
+        rcCommandBuff.y = rcCommand[PITCH];
         if ((!FLIGHT_MODE(ANGLE_MODE) && (!FLIGHT_MODE(HORIZON_MODE)) && (!FLIGHT_MODE(GPS_RESCUE_MODE)))) {
-            rcCommandBuff.Z = rcCommand[YAW];
+            rcCommandBuff.z = rcCommand[YAW];
         } else {
-            rcCommandBuff.Z = 0;
+            rcCommandBuff.z = 0;
         }
         imuQuaternionHeadfreeTransformVectorEarthToBody(&rcCommandBuff);
-        rcCommand[ROLL] = rcCommandBuff.X;
-        rcCommand[PITCH] = rcCommandBuff.Y;
+        rcCommand[ROLL] = rcCommandBuff.x;
+        rcCommand[PITCH] = rcCommandBuff.y;
         if ((!FLIGHT_MODE(ANGLE_MODE)&&(!FLIGHT_MODE(HORIZON_MODE)) && (!FLIGHT_MODE(GPS_RESCUE_MODE)))) {
-            rcCommand[YAW] = rcCommandBuff.Z;
+            rcCommand[YAW] = rcCommandBuff.z;
         }
     }
 }
