@@ -248,7 +248,7 @@ STATIC_UNIT_TESTED void imuMahonyAHRSupdate(float dt, float gx, float gy, float 
 
 #ifdef USE_MAG
     // Use measured magnetic field vector
-    vector3_t mag_bf = {{mag.magADC[X], mag.magADC[Y], mag.magADC[Z]}};
+    vector3_t mag_bf = mag.magADC;
     float recipMagNorm = vector3NormSq(&mag_bf);
     if (useMag && recipMagNorm > 0.01f) {
         // Normalise magnetometer measurement
@@ -363,15 +363,9 @@ STATIC_UNIT_TESTED void imuUpdateEulerAngles(void)
     }
 }
 
-static bool imuIsAccelerometerHealthy(float *accAverage)
+static bool imuIsAccelerometerHealthy(vector3_t *accAverage)
 {
-    float accMagnitudeSq = 0;
-    for (int axis = 0; axis < 3; axis++) {
-        const float a = accAverage[axis];
-        accMagnitudeSq += a * a;
-    }
-
-    accMagnitudeSq = accMagnitudeSq * sq(acc.dev.acc_1G_rec);
+    const float accMagnitudeSq = vector3NormSq(accAverage) * sq(acc.dev.acc_1G_rec);
 
     // Accept accel readings only in range 0.9g - 1.1g
     return (0.81f < accMagnitudeSq) && (accMagnitudeSq < 1.21f);
@@ -543,11 +537,11 @@ static void imuCalculateEstimatedAttitude(timeUs_t currentTimeUs)
         gyroAverage[axis] = gyroGetFilteredDownsampled(axis);
     }
 
-    useAcc = imuIsAccelerometerHealthy(acc.accADC); // all smoothed accADC values are within 20% of 1G
+    useAcc = imuIsAccelerometerHealthy(&acc.accADC); // all smoothed accADC values are within 20% of 1G
 
     imuMahonyAHRSupdate(deltaT * 1e-6f,
                         DEGREES_TO_RADIANS(gyroAverage[X]), DEGREES_TO_RADIANS(gyroAverage[Y]), DEGREES_TO_RADIANS(gyroAverage[Z]),
-                        useAcc, acc.accADC[X], acc.accADC[Y], acc.accADC[Z],
+                        useAcc, acc.accADC.x, acc.accADC.y, acc.accADC.z,
                         useMag,
                         cogYawGain, courseOverGround,  imuCalcKpGain(currentTimeUs, useAcc, gyroAverage));
 
@@ -593,14 +587,14 @@ void imuUpdateAttitude(timeUs_t currentTimeUs)
         mixerSetThrottleAngleCorrection(throttleAngleCorrection);
 
     } else {
-        acc.accADC[X] = 0;
-        acc.accADC[Y] = 0;
-        acc.accADC[Z] = 0;
+        acc.accADC.x = 0;
+        acc.accADC.y = 0;
+        acc.accADC.z = 0;
         schedulerIgnoreTaskStateTime();
     }
 
-    DEBUG_SET(DEBUG_ATTITUDE, X, acc.accADC[X]); // roll
-    DEBUG_SET(DEBUG_ATTITUDE, Y, acc.accADC[Y]); // pitch
+    DEBUG_SET(DEBUG_ATTITUDE, X, acc.accADC.x); // roll
+    DEBUG_SET(DEBUG_ATTITUDE, Y, acc.accADC.y); // pitch
 }
 #endif // USE_ACC
 

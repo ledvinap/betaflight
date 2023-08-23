@@ -42,7 +42,7 @@ typedef enum {
 } magSensor_e;
 
 typedef struct mag_s {
-    float magADC[XYZ_AXIS_COUNT];
+    vector3_t magADC;
 } mag_t;
 
 extern mag_t mag;
@@ -68,4 +68,3 @@ bool compassInit(void);
 void compassPreInit(void);
 void compassStartCalibration(void);
 bool compassIsCalibrationComplete(void);
-

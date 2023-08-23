@@ -351,7 +351,7 @@ bool compassInit(void)
 
 bool compassIsHealthy(void)
 {
-    return (mag.magADC[X] != 0) && (mag.magADC[Y] != 0) && (mag.magADC[Z] != 0);
+    return (mag.magADC.x != 0) && (mag.magADC.y != 0) && (mag.magADC.z != 0);
 }
 
 void compassStartCalibration(void)
@@ -360,8 +360,8 @@ void compassStartCalibration(void)
     flightDynamicsTrims_t *magZero = &compassConfigMutable()->magZero;
     for (int axis = 0; axis < 3; axis++) {
         magZero->raw[axis] = 0;
-        magZeroTempMin.raw[axis] = mag.magADC[axis];
-        magZeroTempMax.raw[axis] = mag.magADC[axis];
+        magZeroTempMin.raw[axis] = mag.magADC.v[axis];
+        magZeroTempMax.raw[axis] = mag.magADC.v[axis];
     }
 }
 
@@ -379,29 +379,29 @@ uint32_t compassUpdate(timeUs_t currentTimeUs)
     }
 
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-        mag.magADC[axis] = magADCRaw[axis];
+        mag.magADC.v[axis] = magADCRaw[axis];
     }
     if (magDev.magAlignment == ALIGN_CUSTOM) {
-        alignSensorViaMatrix(mag.magADC, &magDev.rotationMatrix);
+        alignSensorViaMatrix(&mag.magADC, &magDev.rotationMatrix);
     } else {
-        alignSensorViaRotation(mag.magADC, magDev.magAlignment);
+        alignSensorViaRotation(&mag.magADC, magDev.magAlignment);
     }
 
     flightDynamicsTrims_t *magZero = &compassConfigMutable()->magZero;
     if (magInit) {              // we apply offset only once mag calibration is done
-        mag.magADC[X] -= magZero->raw[X];
-        mag.magADC[Y] -= magZero->raw[Y];
-        mag.magADC[Z] -= magZero->raw[Z];
+        mag.magADC.x -= magZero->raw[X];
+        mag.magADC.y -= magZero->raw[Y];
+        mag.magADC.z -= magZero->raw[Z];
     }
 
     if (tCal != 0) {
         if ((currentTimeUs - tCal) < 30000000) {    // 30s: you have 30s to turn the multi in all directions
             LED0_TOGGLE;
             for (int axis = 0; axis < 3; axis++) {
-                if (mag.magADC[axis] < magZeroTempMin.raw[axis])
-                    magZeroTempMin.raw[axis] = mag.magADC[axis];
-                if (mag.magADC[axis] > magZeroTempMax.raw[axis])
-                    magZeroTempMax.raw[axis] = mag.magADC[axis];
+                if (mag.magADC.v[axis] < magZeroTempMin.raw[axis])
+                    magZeroTempMin.raw[axis] = mag.magADC.v[axis];
+                if (mag.magADC.v[axis] > magZeroTempMax.raw[axis])
+                    magZeroTempMax.raw[axis] = mag.magADC.v[axis];
             }
         } else {
             tCal = 0;

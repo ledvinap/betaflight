@@ -1120,7 +1120,7 @@ static bool mspProcessOutCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t
 
             // Added in API version 1.46
             // Write CPU temp
-#ifdef USE_ADC_INTERNAL                
+#ifdef USE_ADC_INTERNAL
             sbufWriteU16(dst, getCoreTemperatureCelsius());
 #else
             sbufWriteU16(dst, 0);
@@ -1147,7 +1147,7 @@ static bool mspProcessOutCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t
 
             for (int i = 0; i < 3; i++) {
 #if defined(USE_ACC)
-                sbufWriteU16(dst, lrintf(acc.accADC[i] / scale));
+                sbufWriteU16(dst, lrintf(acc.accADC.v[i] / scale));
 #else
                 sbufWriteU16(dst, 0);
 #endif
@@ -1157,7 +1157,7 @@ static bool mspProcessOutCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t
             }
             for (int i = 0; i < 3; i++) {
 #if defined(USE_MAG)
-                sbufWriteU16(dst, lrintf(mag.magADC[i]));
+                sbufWriteU16(dst, lrintf(mag.magADC.v[i]));
 #else
                 sbufWriteU16(dst, 0);
 #endif

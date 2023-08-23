@@ -53,7 +53,7 @@ typedef enum {
 typedef struct acc_s {
     accDev_t dev;
     uint16_t sampleRateHz;
-    float accADC[XYZ_AXIS_COUNT];
+    vector3_t accADC;
     bool isAccelUpdatedAtLeastOnce;
 } acc_t;
 
