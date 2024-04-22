@@ -380,7 +380,7 @@ bool expressLrsIsFhssReq(void)
 {
     uint8_t modresultFHSS = (receiver.nonceRX + 1) % receiver.modParams->fhssHopInterval;
 
-    if ((receiver.modParams->fhssHopInterval == 0) || receiver.alreadyFhss == true || receiver.inBindingMode || (modresultFHSS != 0) || (receiver.connectionState == ELRS_DISCONNECTED)) {
+    if (receiver.alreadyFhss == true || receiver.inBindingMode || (modresultFHSS != 0) || (receiver.connectionState == ELRS_DISCONNECTED)) {
         return false;
     }
 
