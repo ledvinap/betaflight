@@ -4372,7 +4372,7 @@ STATIC_UNIT_TESTED void cliGet(const char *cmdName, char *cmdline)
     }
 }
 
-static uint8_t getWordLength(const char *bufBegin, char *bufEnd)
+static uint8_t getWordLength(const char *bufBegin, const char *bufEnd)
 {
     while (*(bufEnd - 1) == ' ') {
         bufEnd--;
@@ -4604,7 +4604,7 @@ STATIC_UNIT_TESTED void cliSet(const char *cmdName, char *cmdline)
 
 static const char *getMcuTypeById(mcuTypeId_e id)
 {
-    if (id < MCU_TYPE_LAST) {
+    if (id < ARRAYLEN(mcuTypeNames)) {
         return mcuTypeNames[id];
     } else {
         return "UNKNOWN";

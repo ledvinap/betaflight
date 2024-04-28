@@ -676,7 +676,7 @@ static void afatfs_sdcardReadComplete(sdcardBlockOperation_e operation, uint32_t
 /**
  * Called by the SD card driver when one of our write operations completes.
  */
-static void afatfs_sdcardWriteComplete(sdcardBlockOperation_e operation, uint32_t sectorIndex, const uint8_t *buffer, uint32_t callbackData)
+static void afatfs_sdcardWriteComplete(sdcardBlockOperation_e operation, uint32_t sectorIndex, uint8_t *buffer, uint32_t callbackData)
 {
     (void) operation;
     (void) callbackData;

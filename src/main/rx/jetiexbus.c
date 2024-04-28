@@ -96,10 +96,9 @@ static uint16_t jetiExBusChannelData[JETIEXBUS_CHANNEL_COUNT];
 uint16_t jetiExBusCalcCRC16(const uint8_t *pt, uint8_t msgLen)
 {
     uint16_t crc16_data = 0;
-    uint8_t data;
 
     for (uint8_t mlen = 0; mlen < msgLen; mlen++) {
-        data = pt[mlen] ^ ((uint8_t)(crc16_data) & (uint8_t)(0xFF));
+        uint8_t data = pt[mlen] ^ ((uint8_t)(crc16_data) & (uint8_t)(0xFF));
         data ^= data << 4;
         crc16_data = ((((uint16_t)data << 8) | ((crc16_data & 0xFF00) >> 8))
                       ^ (uint8_t)(data >> 4)

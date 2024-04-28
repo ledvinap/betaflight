@@ -80,7 +80,7 @@ static uartDevice_t *uartFindDevice(const uartPort_t *uartPort)
 }
 
 #if !(defined(STM32F4))
-static void uartConfigurePinSwap(const uartPort_t *uartPort)
+static void uartConfigurePinSwap(uartPort_t *uartPort)
 {
     uartDevice_t *uartDevice = uartFindDevice(uartPort);
     if (!uartDevice) {
