@@ -709,23 +709,21 @@ static void applyLedVtxLayer(bool updateNow, timeUs_t *timer)
         *timer += HZ_TO_US(LED_OVERLAY_VTX_RATE_HZ);
     }
 
-    hsvColor_t color = {0, 0, 0};
     if (showSettings) { // show settings
         uint8_t vtxLedCount = 0;
         for (int i = 0; i < ledCounts.count && vtxLedCount < 6; ++i) {
             const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
             if (ledGetOverlayBit(ledConfig, LED_OVERLAY_VTX)) {
+                hsvColor_t color;
                 if (vtxLedCount == 0) {
                     color.h = HSV(GREEN).h;
                     color.s = HSV(GREEN).s;
                     color.v = blink ? 15 : 0; // blink received settings
-                }
-                else if (vtxLedCount > 0 && power >= vtxLedCount && !(vtxStatus & VTX_STATUS_PIT_MODE)) { // show power
+                } else if (vtxLedCount > 0 && power >= vtxLedCount && !(vtxStatus & VTX_STATUS_PIT_MODE)) { // show power
                     color.h = HSV(ORANGE).h;
                     color.s = HSV(ORANGE).s;
                     color.v = blink ? 15 : 0; // blink received settings
-                }
-                else { // turn rest off
+                } else { // turn rest off
                     color.h = HSV(BLACK).h;
                     color.s = HSV(BLACK).s;
                     color.v = HSV(BLACK).v;
@@ -738,7 +736,7 @@ static void applyLedVtxLayer(bool updateNow, timeUs_t *timer)
     else { // show frequency
         // calculate the VTX color based on frequency
         uint8_t const colorIndex = getColorByVtxFrequency(frequency);
-        color = ledStripStatusModeConfig()->colors[colorIndex];
+        hsvColor_t color = ledStripStatusModeConfig()->colors[colorIndex];
         color.v = (vtxStatus & VTX_STATUS_PIT_MODE) ? (blink ? 15 : 0) : 255; // blink when in pit mode
         applyLedHsv(LED_MOV_OVERLAY(LED_FLAG_OVERLAY(LED_OVERLAY_VTX)), &color);
     }
