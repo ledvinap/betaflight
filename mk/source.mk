@@ -71,6 +71,7 @@ COMMON_SRC = \
             common/time.c \
             common/typeconversion.c \
             common/uvarint.c \
+            common/vector.c \
             config/config.c \
             config/config_eeprom.c \
             config/config_streamer.c \

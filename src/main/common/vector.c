@@ -190,3 +190,23 @@ void applyRotationMatrix(vector3_t *v, const matrix33_t *rotationMatrix)
 {
     matrixTrnVectorMul(v, rotationMatrix, v);
 }
+
+matrix33_t * yawToRotationMatrixZ(matrix33_t * result, const float yaw)
+{
+    matrix33_t r;
+    const float sinYaw = sin_approx(yaw);
+    const float cosYaw = cos_approx(yaw);
+
+    r.m[0][0] = cosYaw;
+    r.m[1][0] = sinYaw;
+    r.m[2][0] = 0.0f;
+    r.m[0][1] = -sinYaw;
+    r.m[1][1] = cosYaw;
+    r.m[2][1] = 0.0f;
+    r.m[0][2] = 0.0f;
+    r.m[1][2] = 0.0f;
+    r.m[2][2] = 1.0f;
+
+    *result = r;
+    return result;
+}
