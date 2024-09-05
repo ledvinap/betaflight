@@ -34,7 +34,7 @@ CUSTOM_DEFAULTS_EXTENDED ?= no
 
 # Debugger optons:
 #   empty - ordinary build with all optimizations enabled
-#   INFO - ordinary build with debug symbols and all optimizations enabled
+#   INFO - ordinary build with debug symbols and all optimizations enabled. Only builds touched files.
 #   GDB - debug build with minimum number of optimizations
 DEBUG     ?=
 
@@ -61,8 +61,8 @@ OBJECT_DIR      := $(ROOT)/obj/main
 BIN_DIR         := $(ROOT)/obj
 CMSIS_DIR       := $(ROOT)/lib/main/CMSIS
 INCLUDE_DIRS    := $(SRC_DIR) \
-                   $(ROOT)/src/main/target \
-                   $(ROOT)/src/main/startup
+                   $(ROOT)/src/main/target
+
 LINKER_DIR      := $(ROOT)/src/link
 MAKE_SCRIPT_DIR := $(ROOT)/mk
 
@@ -80,11 +80,16 @@ ifneq ($(wildcard $(MAKE_SCRIPT_DIR)/local.mk),)
 include $(MAKE_SCRIPT_DIR)/local.mk
 endif
 
+# some targets use parallel build by default
+# MAKEFLAGS is valid only inside target, do not use this at parse phase
+DEFAULT_PARALLEL_JOBS 	:=    # all jobs in parallel (for backward compatibility)
+MAKE_PARALLEL 		= $(if $(filter -j%, $(MAKEFLAGS)),$(EMPTY),-j$(DEFAULT_PARALLEL_JOBS))
+
 # pre-build sanity checks
 include $(MAKE_SCRIPT_DIR)/checks.mk
 
 # basic target list
-BASE_TARGETS := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(ROOT)/src/main/target/*/target.mk)))))
+BASE_TARGETS     := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(ROOT)/src/main/target/*/target.mk)))))
 
 # configure some directories that are relative to wherever ROOT_DIR is located
 TOOLS_DIR  ?= $(ROOT)/tools
@@ -127,7 +132,8 @@ endif
 # default xtal value
 HSE_VALUE       ?= 8000000
 
-CI_TARGETS       := $(BASE_TARGETS) $(filter CRAZYBEEF4SX1280 CRAZYBEEF4FR IFLIGHT_BLITZ_F722 NUCLEOF446 SPRACINGH7EXTREME SPRACINGH7RF, $(BASE_CONFIGS))
+CI_EXCLUDED_TARGETS := $(sort $(notdir $(patsubst %/,%,$(dir $(wildcard $(ROOT)/src/main/target/*/.exclude)))))
+CI_TARGETS          := $(filter-out $(CI_EXCLUDED_TARGETS), $(BASE_TARGETS)) $(filter CRAZYBEEF4SX1280 CRAZYBEEF4FR IFLIGHT_BLITZ_F722 NUCLEOF446 SPRACINGH7EXTREME SPRACINGH7RF, $(BASE_CONFIGS))
 include $(ROOT)/src/main/target/$(TARGET)/target.mk
 
 REVISION := norevision
@@ -141,16 +147,25 @@ EXTRA_LD_FLAGS  :=
 #
 # Default Tool options - can be overridden in {mcu}.mk files.
 #
+DEBUG_MIXED = no
+
+ifeq ($(DEBUG),INFO)
+DEBUG_MIXED = yes
+endif
+ifeq ($(DEBUG),GDB)
+DEBUG_MIXED = yes
+endif
+
 ifeq ($(DEBUG),GDB)
 OPTIMISE_DEFAULT      := -Og
 
 LTO_FLAGS             := $(OPTIMISE_DEFAULT)
-DEBUG_FLAGS            = -ggdb3 -gdwarf-5 -DDEBUG
+DEBUG_FLAGS            = -ggdb2 -gdwarf-5 -DDEBUG
 else
 ifeq ($(DEBUG),INFO)
-DEBUG_FLAGS            = -ggdb3
+DEBUG_FLAGS            = -ggdb2
 endif
-OPTIMISATION_BASE     := -flto -fuse-linker-plugin -ffast-math -fmerge-all-constants
+OPTIMISATION_BASE     := -flto=auto -fuse-linker-plugin -ffast-math -fmerge-all-constants
 OPTIMISE_DEFAULT      := -O2
 OPTIMISE_SPEED        := -Ofast
 OPTIMISE_SIZE         := -Os
@@ -253,7 +268,7 @@ CFLAGS     += $(ARCH_FLAGS) \
               $(addprefix -I,$(INCLUDE_DIRS)) \
               $(DEBUG_FLAGS) \
               -std=gnu17 \
-              -Wall -Wextra -Werror -Wpedantic -Wunsafe-loop-optimizations -Wdouble-promotion \
+              -Wall -Wextra -Werror -Wunsafe-loop-optimizations -Wdouble-promotion \
               $(EXTRA_WARNING_FLAGS) \
               -ffunction-sections \
               -fdata-sections \
@@ -335,7 +350,12 @@ TARGET_MAP      = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET_NAME).map
 
 TARGET_EXST_HASH_SECTION_FILE = $(TARGET_OBJ_DIR)/exst_hash_section.bin
 
-TARGET_EF_HASH      := $(shell echo -n "$(EXTRA_FLAGS)" | openssl dgst -md5 | awk '{print $$2;}')
+ifeq ($(DEBUG_MIXED),yes)
+TARGET_EF_HASH      := $(shell echo -n -- "$(EXTRA_FLAGS)" "$(OPTIONS)" "$(DEVICE_FLAGS)" "$(TARGET_FLAGS)"  | openssl dgst -md5 -r | awk '{print $$1;}')
+else
+TARGET_EF_HASH      := $(shell echo -n -- "$(EXTRA_FLAGS)" "$(OPTIONS)" "$(DEBUG_FLAGS)" "$(DEVICE_FLAGS)" "$(TARGET_FLAGS)"  | openssl dgst -md5 -r | awk '{print $$1;}')
+endif
+
 TARGET_EF_HASH_FILE := $(TARGET_OBJ_DIR)/.efhash_$(TARGET_EF_HASH)
 
 CLEAN_ARTIFACTS := $(TARGET_BIN)
@@ -474,6 +494,8 @@ $(BASE_TARGETS):
 
 TARGETS_CLEAN = $(addsuffix _clean,$(BASE_TARGETS))
 
+CONFIGS_CLEAN = $(addsuffix _clean,$(BASE_CONFIGS))
+
 ## clean             : clean up temporary / machine-generated files
 clean:
 	@echo "Cleaning $(TARGET_NAME)"
@@ -490,10 +512,17 @@ test_clean:
 
 ## <TARGET>_clean    : clean up one specific target (alias for above)
 $(TARGETS_CLEAN):
-	$(V0) $(MAKE) -j TARGET=$(subst _clean,,$@) clean
+	$(V0) $(MAKE) $(MAKE_PARALLEL) TARGET=$(subst _clean,,$@) clean
+
+## <CONFIG>_clean    : clean up one specific target (alias for above)
+$(CONFIGS_CLEAN):
+	$(V0) $(MAKE) $(MAKE_PARALLEL) CONFIG=$(subst _clean,,$@) clean
 
 ## clean_all         : clean all targets
 clean_all: $(TARGETS_CLEAN) test_clean
+
+## all_configs       : Build all configs
+all_configs: $(BASE_CONFIGS)
 
 TARGETS_FLASH = $(addsuffix _flash,$(BASE_TARGETS))
 
@@ -544,10 +573,10 @@ zip:
 	$(V0) zip $(TARGET_ZIP) $(TARGET_HEX)
 
 binary:
-	$(V0) $(MAKE) -j $(TARGET_BIN)
+	$(V0) $(MAKE) $(MAKE_PARALLEL) $(TARGET_BIN)
 
 hex:
-	$(V0) $(MAKE) -j $(TARGET_HEX)
+	$(V0) $(MAKE) $(MAKE_PARALLEL) $(TARGET_HEX)
 
 TARGETS_REVISION = $(addsuffix _rev,$(BASE_TARGETS))
 ## <TARGET>_rev    : build target and add revision to filename
@@ -650,7 +679,7 @@ test_%:
 
 $(TARGET_EF_HASH_FILE):
 	$(V1) mkdir -p $(dir $@)
-	$(V0) rm -f $(TARGET_OBJ_DIR)/.efhash_*
+	$(V1) rm -f $(TARGET_OBJ_DIR)/.efhash_*
 	@echo "EF HASH -> $(TARGET_EF_HASH_FILE)"
 	$(V1) touch $(TARGET_EF_HASH_FILE)
 

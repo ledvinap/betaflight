@@ -37,6 +37,7 @@
 #include "fc/controlrate_profile.h"
 #include "fc/runtime_config.h"
 
+#include "mixer.h"
 #include "flight/mixer_tricopter.h"
 #include "flight/pid.h"
 
@@ -327,7 +328,7 @@ void initEscEndpoints(void)
 void mixerInitProfile(void)
 {
 #ifdef USE_DYN_IDLE
-    if (motorConfigMutable()->dev.useDshotTelemetry) {
+    if (useDshotTelemetry) {
         mixerRuntime.dynIdleMinRps = currentPidProfile->dyn_idle_min_rpm * 100.0f / 60.0f;
     } else {
         mixerRuntime.dynIdleMinRps = 0.0f;
@@ -345,7 +346,7 @@ void mixerInitProfile(void)
 
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
     mixerRuntime.vbatSagCompensationFactor = 0.0f;
-    if (currentPidProfile->vbat_sag_compensation > 0) {
+    if (currentPidProfile->vbat_sag_compensation > 0 && !RPM_LIMIT_ACTIVE) {
         //TODO: Make this voltage user configurable
         mixerRuntime.vbatFull = CELL_VOLTAGE_FULL_CV;
         mixerRuntime.vbatRangeToCompensate = mixerRuntime.vbatFull - batteryConfig()->vbatwarningcellvoltage;
@@ -360,17 +361,25 @@ void mixerInitProfile(void)
     mixerRuntime.rpmLimiterPGain = mixerConfig()->rpm_limit_p * 15e-6f;
     mixerRuntime.rpmLimiterIGain = mixerConfig()->rpm_limit_i * 1e-3f * pidGetDT();
     mixerRuntime.rpmLimiterDGain = mixerConfig()->rpm_limit_d * 3e-7f * pidGetPidFrequency();
-    pt1FilterInit(&mixerRuntime.averageRpmFilter, pt1FilterGain(6.0f, pidGetDT()));
+    mixerRuntime.rpmLimiterI = 0.0;
+    pt1FilterInit(&mixerRuntime.rpmLimiterAverageRpmFilter, pt1FilterGain(6.0f, pidGetDT()));
+    pt1FilterInit(&mixerRuntime.rpmLimiterThrottleScaleOffsetFilter, pt1FilterGain(2.0f, pidGetDT()));
     mixerResetRpmLimiter();
 #endif
+
+    mixerRuntime.ezLandingThreshold = 2.0f * currentPidProfile->ez_landing_threshold / 100.0f;
+    mixerRuntime.ezLandingLimit = currentPidProfile->ez_landing_limit / 100.0f;
+    mixerRuntime.ezLandingSpeed = 2.0f * currentPidProfile->ez_landing_speed / 10.0f;
 }
 
 #ifdef USE_RPM_LIMIT
 void mixerResetRpmLimiter(void)
 {
-    const float maxExpectedRpm = MAX(1.0f, motorConfig()->kv * getBatteryVoltage() * 0.01f);
-    mixerRuntime.rpmLimiterThrottleScale = constrainf(mixerRuntime.rpmLimiterRpmLimit / maxExpectedRpm, 0.0f, 1.0f);
+    mixerRuntime.rpmLimiterI = 0.0;
+    mixerRuntime.rpmLimiterThrottleScale = constrainf(mixerRuntime.rpmLimiterRpmLimit / motorEstimateMaxRpm(), 0.0f, 1.0f);
+    mixerRuntime.rpmLimiterInitialThrottleScale = mixerRuntime.rpmLimiterThrottleScale;
 }
+
 #endif // USE_RPM_LIMIT
 
 #ifdef USE_LAUNCH_CONTROL

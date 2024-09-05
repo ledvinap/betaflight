@@ -134,7 +134,13 @@ void timerConfigure(const timerHardware_t *timHw, uint16_t period, uint32_t hz);
 // Initialisation
 //
 void timerInit(void);
-void timerStart(void);
+
+//
+// per-timer
+//
+
+// once-upon-a-time all the timers were started on boot, now they are started when needed.
+void timerStart(TIM_TypeDef *tim);
 
 //
 // per-channel
@@ -167,13 +173,13 @@ void timerForceOverflow(TIM_TypeDef *tim);
 
 void timerConfigUpdateCallback(const TIM_TypeDef *tim, timerOvrHandlerRec_t *updateCallback);
 
-uint32_t timerClock(TIM_TypeDef *tim);
+uint32_t timerClock(const TIM_TypeDef *tim);
 
 void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint32_t hz);  // TODO - just for migration
 void timerReconfigureTimeBase(TIM_TypeDef *tim, uint16_t period, uint32_t hz);
 
-rccPeriphTag_t timerRCC(TIM_TypeDef *tim);
-uint8_t timerInputIrq(TIM_TypeDef *tim);
+rccPeriphTag_t timerRCC(const TIM_TypeDef *tim);
+uint8_t timerInputIrq(const TIM_TypeDef *tim);
 
 #if defined(USE_TIMER_MGMT)
 extern const resourceOwner_t freeOwner;

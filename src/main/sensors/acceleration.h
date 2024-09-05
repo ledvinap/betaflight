@@ -47,6 +47,7 @@ typedef enum {
     ACC_BMI160,
     ACC_BMI270,
     ACC_LSM6DSO,
+    ACC_LSM6DSV16X,
     ACC_VIRTUAL
 } accelerationSensor_e;
 
@@ -55,6 +56,8 @@ typedef struct acc_s {
     uint16_t sampleRateHz;
     vector3_t accADC;
     bool isAccelUpdatedAtLeastOnce;
+    float accMagnitude;
+    float accDelta;
 } acc_t;
 
 extern acc_t acc;

@@ -71,6 +71,7 @@ typedef enum mixerType
     MIXER_LEGACY = 0,
     MIXER_LINEAR = 1,
     MIXER_DYNAMIC = 2,
+    MIXER_EZLANDING = 3,
 } mixerType_e;
 
 // Custom mixer data per motor
@@ -109,6 +110,12 @@ PG_DECLARE(mixerConfig_t, mixerConfig);
 
 #define CHANNEL_FORWARDING_DISABLED (uint8_t)0xFF
 
+#ifdef USE_RPM_LIMIT
+#define RPM_LIMIT_ACTIVE mixerConfig()->rpm_limit
+#else
+#define RPM_LIMIT_ACTIVE false
+#endif
+
 extern const mixer_t mixers[];
 extern float motor[MAX_SUPPORTED_MOTORS];
 extern float motor_disarmed[MAX_SUPPORTED_MOTORS];
@@ -133,6 +140,7 @@ bool mixerIsTricopter(void);
 
 void mixerSetThrottleAngleCorrection(int correctionValue);
 float mixerGetThrottle(void);
+float mixerGetRcThrottle(void);
 mixerMode_e getMixerMode(void);
 bool mixerModeIsFixedWing(mixerMode_e mixerMode);
 bool isFixedWing(void);
