@@ -121,11 +121,37 @@ FATFS_DIR        = $(ROOT)/lib/main/FatFS
 FATFS_SRC        = $(notdir $(wildcard $(FATFS_DIR)/*.c))
 CSOURCES        := $(shell find $(SRC_DIR) -name '*.c')
 
-FC_VER_MAJOR := $(shell grep " FC_VERSION_MAJOR" src/main/build/version.h | awk '{print $$3}' )
-FC_VER_MINOR := $(shell grep " FC_VERSION_MINOR" src/main/build/version.h | awk '{print $$3}' )
-FC_VER_PATCH := $(shell grep " FC_VERSION_PATCH" src/main/build/version.h | awk '{print $$3}' )
+# One shot dump of all macros from version.h; replace whitespace with |
+PP_DUMP_ESC := $(shell $(CC) $(CPPFLAGS) \
+    $(addprefix -D,$(OPTIONS)) \
+    $(addprefix -I,$(INCLUDE_DIRS)) \
+    $(addprefix -isystem,$(SYS_INCLUDE_DIRS)) \
+	-E -dM -xc /dev/null \
+  	-include src/main/build/version.h \
+  	| sed 's/[ \t]/|/g')
 
-FC_VER       := $(FC_VER_MAJOR).$(FC_VER_MINOR).$(FC_VER_PATCH)
+HASH := $(shell printf '#')
+
+# Find full "#define NAME value" line (escaped to #define|NAME|value)
+pp_get_define = $(strip $(filter $(HASH)define|$1|%,$(PP_DUMP_ESC)))
+# Extract RHS (still '|' escaped)
+pp_def_raw    = $(patsubst $(HASH)define|$1|%,%,$(call get_define,$1))
+# Remove surrounding quotes (but not interior ones) while still escaped
+pp_unquote    = $(if $(filter "%",$1),$(patsubst "%",%,$1),$1)
+# Public helpers
+pp_def_value      = $(subst |, ,$(call pp_def_raw,$1))
+pp_def_value_nq   = $(subst |, ,$(call pp_unquote,$(call pp_def_raw,$1)))
+
+FC_VER_YEAR   := $(call pp_def_value,FC_VERSION_YEAR)
+FC_VER_MONTH  := $(call pp_def_value,FC_VERSION_MONTH)
+FC_VER_PATCH  := $(call pp_def_value,FC_VERSION_PATCH_LEVEL)
+FC_VER_SUFFIX := $(call pp_def_value_nq,FC_VERSION_SUFFIX)
+
+FC_VER       := $(FC_VER_YEAR).$(FC_VER_MONTH).$(FC_VER_PATCH)
+
+ifdef FC_VER_SUFFIX
+FC_VER       := $(FC_VER)-$(FC_VER_SUFFIX)
+endif
 
 # import config handling (must occur after the hydration of hex, exe and uf2 targets)
 include $(MAKE_SCRIPT_DIR)/config.mk
@@ -237,6 +263,11 @@ include $(MAKE_SCRIPT_DIR)/openocd.mk
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
                    $(ROOT)/lib/main/MAVLink
 
+# Add local third-party headers to include path so `#include <boost/...>` resolves
+# after moving Boost.Preprocessor to `lib/main/boost`.
+INCLUDE_DIRS    := $(INCLUDE_DIRS) \
+                   $(ROOT)/lib/main
+
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
                    $(TARGET_DIR)
 
@@ -316,9 +347,11 @@ CFLAGS     += $(ARCH_FLAGS) \
               -D'__FORKNAME__="$(FORKNAME)"' \
               -D'__TARGET__="$(TARGET)"' \
               -D'__REVISION__="$(REVISION)"' \
+              -D'__FC_VERSION__="$(FC_VER)"' \
               $(CONFIG_REVISION_DEFINE) \
-              -pipe \
               -MMD -MP \
+              -save-temps=obj \
+              -Wno-implicit-fallthrough \
               $(EXTRA_FLAGS)
 
 CFLAGS     := $(filter-out $(CFLAGS_DISABLED), $(CFLAGS))
